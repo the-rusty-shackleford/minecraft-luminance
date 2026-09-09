@@ -1,0 +1,15 @@
+{
+  "minecraft:blaze": { "luminance": 10, "underwater": false },
+  "minecraft:magma_cube": 8,
+  "minecraft:glow_squid": 12,
+  "minecraft:allay": 8,
+  "minecraft:fireball": 14,
+  "minecraft:small_fireball": 10,
+  "minecraft:dragon_fireball": 12,
+  "minecraft:spectral_arrow": 8,
+  "minecraft:tnt": 10,
+  "minecraft:end_crystal": 8,
+  "minecraft:glow_item_frame": 10,
+  "minecraft:experience_orb": 6,
+  "minecraft:experience_bottle": 6
+}

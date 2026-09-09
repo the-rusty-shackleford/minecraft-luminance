@@ -1,0 +1,22 @@
+{
+  "minecraft:torch": { "luminance": 14, "underwater": false },
+  "minecraft:soul_torch": { "luminance": 10, "underwater": false },
+  "minecraft:redstone_torch": { "luminance": 7, "underwater": false },
+  "minecraft:campfire": { "luminance": 15, "underwater": false },
+  "minecraft:soul_campfire": { "luminance": 10, "underwater": false },
+  "minecraft:lava_bucket": { "luminance": 15, "underwater": false },
+  "minecraft:blaze_rod": 10,
+  "minecraft:blaze_powder": 6,
+  "minecraft:glowstone_dust": 8,
+  "minecraft:glow_ink_sac": 10,
+  "minecraft:glow_berries": 6,
+  "minecraft:nether_star": 14,
+  "minecraft:magma_cream": 8,
+  "minecraft:spectral_arrow": 8,
+  "minecraft:end_crystal": 14,
+  "minecraft:fire_charge": 10,
+  "minecraft:enchanted_golden_apple": 4,
+  "minecraft:experience_bottle": 6,
+  "minecraft:beacon": 15,
+  "minecraft:amethyst_shard": 5
+}

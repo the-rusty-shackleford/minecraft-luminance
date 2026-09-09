@@ -1,0 +1,17 @@
+# The photo booth, as a mod of its own; never shipped.
+modLoader="javafml"
+loaderVersion="[1,)"
+license="AGPL-3.0-or-later"
+
+[[mods]]
+modId="luminance_gametest"
+version="1.0.0"
+displayName="Luminance booth"
+description='''The photo booth.'''
+
+[[dependencies.luminance_gametest]]
+    modId="luminance"
+    type="required"
+    versionRange="[1.0,)"
+    ordering="AFTER"
+    side="CLIENT"

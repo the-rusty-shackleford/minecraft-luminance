@@ -1,0 +1,40 @@
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+issueTrackerURL="https://github.com/the-rusty-shackleford/minecraft-luminance/issues"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+authors="Rusty Shackleford, nfx"
+# A client-only mod: a server without it is no mismatch.
+displayTest="IGNORE_ALL_VERSION"
+description='''
+Dynamic light from the things that carry it: a torch in a hand lights the
+ground, a burning mob lights its surroundings, a dropped glowstone glows,
+and any mod may add its own sources -- a point, or a line for a beam.
+
+Everything a block-light lookup sees takes the dynamic light into account:
+the terrain around the player, entities, block entities, particles, with or
+without Sodium and shaders. Which items and mobs glow is data
+(assets/<namespace>/luminance/items.json and entities.json), so a pack can
+light any mod's things without code.
+'''
+
+[[mixins]]
+config="luminance.mixins.json"
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neo_version},)"
+    ordering="NONE"
+    side="CLIENT"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="CLIENT"
