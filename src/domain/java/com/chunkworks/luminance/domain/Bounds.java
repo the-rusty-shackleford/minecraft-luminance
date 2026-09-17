@@ -38,6 +38,16 @@ public record Bounds(int minX, int minY, int minZ, int maxX, int maxY, int maxZ)
         return new Bounds(bx - radius, by - radius, bz - radius, bx + radius, by + radius, bz + radius);
     }
 
+    /**
+     * requires: finite coordinates and luminance 1..15
+     * effects: returns conservative bounds of block centres where rounded radial light is positive
+     */
+    public static Bounds litAround(double x, double y, double z, int luminance) {
+        return new Bounds((int) Math.ceil(x - luminance), (int) Math.ceil(y - luminance),
+                (int) Math.ceil(z - luminance), (int) Math.floor(x + luminance - 1),
+                (int) Math.floor(y + luminance - 1), (int) Math.floor(z + luminance - 1));
+    }
+
     /** effects: returns whether the block at {@code (x, y, z)} is in this box */
     public boolean contains(int x, int y, int z) {
         return x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ;

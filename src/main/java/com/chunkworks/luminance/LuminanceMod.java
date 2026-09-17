@@ -45,6 +45,7 @@ public final class LuminanceMod {
         modBus.addListener((RegisterClientReloadListenersEvent event) -> event.registerReloadListener(LightData.INSTANCE));
         Providers.registerBuiltIns();
         NeoForge.EVENT_BUS.addListener(Engine::onClientTick);
+        NeoForge.EVENT_BUS.addListener(Engine::onFrame);
         NeoForge.EVENT_BUS.addListener(Engine::onLoggingOut);
     }
 }

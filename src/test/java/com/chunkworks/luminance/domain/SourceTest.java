@@ -30,9 +30,8 @@ import org.junit.jupiter.api.Test;
  * the source. Line: a block beside the middle of the segment, beside an
  * end, beyond an end (falls off from the end, not the extension), on the
  * segment, a zero-length line (a point). Bounds: reach luminance - 1 on
- * each axis for a point, the union of the ends for a line. Settling: two
- * positions in one block settle equal, across a block edge not; settling
- * is idempotent and keeps the light at the block itself.
+ * each axis at block centres; fractional/negative/boundary coordinates. Settling:
+ * sub-block motion changes sources, sub-sixteenth noise does not; idempotent.
  */
 final class SourceTest {
 
@@ -98,17 +97,30 @@ final class SourceTest {
     }
 
     @Test
-    void settlingPutsASourceAtItsBlocksCentre() {
-        Point a = new Point(10.2, 64.9, 10.7, 14);
-        Point b = new Point(10.8, 64.1, 10.1, 14);
-        Point c = new Point(11.0, 64.5, 10.5, 14);
-        assertEquals(a.settled(), b.settled(), "one block, one source");
-        assertEquals(new Point(10.5, 64.5, 10.5, 14), a.settled());
-        assertTrue(!a.settled().equals(c.settled()), "the next block is another source");
-        assertEquals(a.settled(), a.settled().settled(), "idempotent");
-        assertEquals(14, a.settled().lightAt(10, 64, 10));
-        Line beam = new Line(0.1, 64.9, 0.2, 10.9, 64.1, 0.8, 15);
-        assertEquals(new Line(0.5, 64.5, 0.5, 10.5, 64.5, 0.5, 15), beam.settled());
+    void settlingPreservesSubBlockMotionAndIgnoresNoise() {
+        Point a = new Point(10.20, 64.90, -10.70, 14);
+        assertEquals(new Point(10.1875, 64.875, -10.6875, 14), a.settled());
+        assertEquals(a.settled(), new Point(10.201, 64.901, -10.701, 14).settled());
+        assertTrue(!a.settled().equals(new Point(10.8, 64.1, -10.1, 14).settled()));
+        assertEquals(a.settled(), a.settled().settled());
+        Line line = new Line(0.1, 64.9, 0.2, 10.9, 64.1, 0.8, 15);
+        assertEquals(new Line(0.125, 64.875, 0.1875, 10.875, 64.125, 0.8125, 15), line.settled());
+    }
+
+    @Test
+    void fractionalBoundsContainEveryPositiveSampleIncludingRoundingBoundary() {
+        for (int luminance : new int[] {1, 7, 15}) {
+            for (double coordinate : new double[] {-0.9375, -0.5, 0, 0.0625, 0.5, 0.9375}) {
+                Source[] sources = {new Point(coordinate, coordinate, coordinate, luminance),
+                        new Line(coordinate, coordinate, coordinate, 2.25, 3.125, -2.75, luminance)};
+                for (Source source : sources) {
+                    Bounds bounds = source.bounds();
+                    for (int x = -20; x <= 20; x++) for (int y = -20; y <= 20; y++) for (int z = -20; z <= 20; z++) {
+                        if (source.lightAt(x,y,z) > 0) assertTrue(bounds.contains(x,y,z), source + " at " + x + "," + y + "," + z);
+                    }
+                }
+            }
+        }
     }
 
     @Test

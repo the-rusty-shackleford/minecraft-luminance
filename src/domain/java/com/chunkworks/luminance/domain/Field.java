@@ -25,11 +25,11 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Every dynamic light in the world at one instant, settled to block centres,
+ * Every dynamic light in the world at one instant, settled to sixteenths of a block,
  * and the light they cast together: the strongest at each block, never a
  * sum, as the game's own lights combine.
  *
- * <p>The engine publishes one of these per client tick and the renderer
+ * <p>The engine publishes these at a bounded cadence before rendered frames and the renderer
  * reads it from any thread -- chunk meshing runs on workers -- so a field
  * is immutable and its queries allocate nothing.
  *
@@ -56,7 +56,7 @@ public final class Field {
 
     /**
      * effects: returns the field of {@code sources}, each settled to its
-     * block, duplicates merged, keeping at most {@code cap} of them -- the
+     * sub-block position, duplicates merged, keeping at most {@code cap} of them -- the
      * ones nearest {@code (nearX, nearY, nearZ)}, the viewer, since a light
      * far away matters least<br>
      * throws: {@link IllegalArgumentException} if {@code cap} < 0
@@ -115,7 +115,7 @@ public final class Field {
     /**
      * effects: returns the boxes of blocks whose light may differ between
      * {@code previous} and this field: the bounds of every source in one
-     * and not the other. A source that stayed in its block changes nothing.
+     * and not the other. A source that stayed at its quantized position changes nothing.
      */
     public List<Bounds> dirtyAgainst(Field previous) {
         List<Bounds> dirty = new ArrayList<>();

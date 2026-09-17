@@ -18,7 +18,7 @@ copy of LambDynamicLights did not.
 
 `domain`: `Source` (a `Point` or a `Line`), its `Bounds`, and `Field` -- the strongest
 light at a block over settled sources, and the boxes a change touches. `main`: the
-`Engine` publishes one immutable `Field` per client tick behind a volatile reference and
+`Engine` publishes one immutable `Field` at most 30 times per second before rendering behind a volatile reference and
 re-meshes the sections a source entered or left; `Providers` turn entities into sources
 (held and dropped items, fire, data entries, registered providers); `LightData` reads
 `luminance/items.json` and `entities.json` from every pack; two mixins make
@@ -27,7 +27,7 @@ re-meshes the sections a source entered or left; `Providers` turn entities into 
 
 ## How it is verified
 
-`./gradlew check`: twelve JUnit tests on the pure layer (falloff, lines, bounds,
+`./gradlew check`: JUnit tests on the pure layer (falloff, lines, bounds,
 settling, the field's max, the cap, what dirties); the photo booth on a real client
 (dark at night, a torch lights the ground, the engine off leaves it dark, a dropped
 glowstone, a burning cow), read off the frame. Run once by hand under Sodium + Iris +
@@ -36,10 +36,25 @@ Complementary before 1.0.0: the terrain took the light there too.
 ## Decisions
 
 D-0001: one static mixin on vanilla's light lookup rather than a Sodium hook, because
-Sodium calls it; sources settle to block centres so motion within a block redraws nothing.
+Sodium calls it; the original whole-block settling trade-off. D-0002 supersedes that settling with
+1/16-block precision and interpolated frame samples, retaining point/line appearance.
 
 ## Next
 
 1.0.0 (2026-09-09). Vanilla Wheels registers headlamp beams through the api. A per-pack
 suggestion: turn Complementary's own handheld light off now that every player's torch
 lights the world.
+
+## Release authorization — 2026-09-17
+
+Rusty approved the final vehicle cosmetics, then explicitly requested the release.
+Version 1.1.0 is the coordinated release version, superseding the prior hold.
+The release set is Luminance 1.1.0, Vanilla Wheels 1.7.0 (network protocol 4),
+Trailblazer 1.7.0, Farmer's Pickup 1.3.0 and Trailer 2.3.0, targeting pack 1.36.0.
+All peers must update together. Vehicle artwork changes leave the existing gameplay
+profiles, recipes, seats and interaction anchors unchanged; the separately approved
+collision and moving-light changes ship in the shared libraries.
+
+Independent driver/observer multiplayer, the historical live movement-warning route,
+and representative 4–8-player tracking/DH capacity remain open follow-ups. Local tests
+do not establish those results. Release authorization does not claim those checks passed.

@@ -13,3 +13,4 @@ tags: [index]
 | Id | Topic |
 |----|-------|
 | D-0001 | Light through vanilla's one lookup; sources settled to block centres |
+| D-0002 | Sub-block frame samples preserve the original light appearance (supersedes D-0001 settling) |

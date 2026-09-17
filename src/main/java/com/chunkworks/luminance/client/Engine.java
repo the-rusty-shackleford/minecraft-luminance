@@ -35,22 +35,29 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
- * Publishes the world's dynamic light once per client tick: gathers every
+ * Publishes the world's dynamic light before rendering, at most 30 times per second: gathers every
  * source the providers report for the entities in range, settles them into
  * a {@link Field}, and re-meshes the sections whose light changed. The
  * mixins read the published field from whatever thread draws or meshes,
  * which is why it is one immutable object behind a volatile reference and
  * never edited in place.
  *
- * <p>Cost, stated: one pass over the level's rendered entities per tick,
+ * <p>Cost, stated: one pass over the level's rendered entities per sample,
  * one bounded query per block-light lookup (at most {@code maxSources}
  * box tests), and a section rebuild for every 16-block section a source
- * entered or left this tick.
+ * entered or left this sample.
  */
 public final class Engine {
     private Engine() {}
 
     private static volatile Field field = Field.EMPTY;
+    private static final boolean METRICS = Boolean.getBoolean("luminance.metrics");
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(Engine.class);
+    private static long metricTicks, metricNanos, metricSections;
+    private static int peakSections;
+    private static long lastSample;
+    private static final long SAMPLE_NANOS = 1_000_000_000L / 30;
+    private static final LongSet sections = new LongOpenHashSet();
 
     /** effects: returns the dynamic light at the block {@code (x, y, z)}, 0 when none; safe from any thread */
     public static int lightAt(int x, int y, int z) {
@@ -70,6 +77,16 @@ public final class Engine {
 
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null || !LuminanceConfig.ENABLED.get()) publish(mc, Field.EMPTY);
+    }
+
+    /** effects: samples the position actually being rendered, coalescing multiple simulation ticks into one light update */
+    public static void onFrame(net.neoforged.neoforge.client.event.RenderFrameEvent.Pre event) {
+        long now = System.nanoTime();
+        if (now - lastSample < SAMPLE_NANOS) return;
+        lastSample = now;
+        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null || mc.player == null || !LuminanceConfig.ENABLED.get()) {
             publish(mc, Field.EMPTY);
@@ -82,13 +99,15 @@ public final class Engine {
             if (entity.distanceToSqr(eye) > (double) range * range) {
                 continue;
             }
-            Providers.collect(entity, sources);
+            Providers.collect(entity, sources, partialTick);
         }
         publish(mc, Field.of(sources, LuminanceConfig.MAX_SOURCES.get(), eye.x, eye.y, eye.z));
     }
 
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         field = Field.EMPTY;
+        lastSample = 0;
+        sections.clear();
     }
 
     /** effects: makes {@code next} the field and re-meshes every section whose light it changed */
@@ -101,12 +120,29 @@ public final class Engine {
         if (mc.level == null) {
             return;
         }
-        LongSet sections = new LongOpenHashSet();
+        long started = METRICS ? System.nanoTime() : 0;
+        sections.clear();
         for (Bounds box : next.dirtyAgainst(previous)) {
-            for (int[] s : box.sections()) {
-                if (sections.add(SectionPos.asLong(s[0], s[1], s[2]))) {
-                    mc.levelRenderer.setSectionDirty(s[0], s[1], s[2]);
+            for (int sx = box.minX() >> 4; sx <= box.maxX() >> 4; sx++) {
+                for (int sy = box.minY() >> 4; sy <= box.maxY() >> 4; sy++) {
+                    if (sy < mc.level.getMinSection() || sy >= mc.level.getMaxSection()) continue;
+                    for (int sz = box.minZ() >> 4; sz <= box.maxZ() >> 4; sz++) {
+                        if (sections.add(SectionPos.asLong(sx, sy, sz))) {
+                            mc.levelRenderer.setSectionDirty(sx, sy, sz);
+                        }
+                    }
                 }
+            }
+        }
+        if (METRICS) {
+            metricNanos += System.nanoTime() - started;
+            metricSections += sections.size();
+            peakSections = Math.max(peakSections, sections.size());
+            if (++metricTicks % 100 == 0) {
+                LOG.info("luminance-metrics: samples={} sources={} sectionsMean={} sectionsPeak={} schedulingMicros={}",
+                        metricTicks, next.sources().size(), metricSections / 100.0, peakSections, metricNanos / 100000.0);
+                metricNanos = metricSections = 0;
+                peakSections = 0;
             }
         }
     }

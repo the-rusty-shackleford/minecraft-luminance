@@ -33,9 +33,7 @@ public record Point(double x, double y, double z, int luminance) implements Sour
 
     @Override
     public Bounds bounds() {
-        // Light reaches where luminance - distance rounds above 0: under
-        // luminance - 0.5 away, and never past luminance - 1 whole blocks.
-        return Bounds.around(x, y, z, luminance - 1);
+        return Bounds.litAround(x, y, z, luminance);
     }
 
     @Override
@@ -48,6 +46,6 @@ public record Point(double x, double y, double z, int luminance) implements Sour
 
     @Override
     public Point settled() {
-        return new Point(Source.centreOf(x), Source.centreOf(y), Source.centreOf(z), luminance);
+        return new Point(Source.subBlock(x), Source.subBlock(y), Source.subBlock(z), luminance);
     }
 }

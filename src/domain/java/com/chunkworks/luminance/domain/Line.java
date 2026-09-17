@@ -39,7 +39,7 @@ public record Line(double x0, double y0, double z0, double x1, double y1, double
 
     @Override
     public Bounds bounds() {
-        return Bounds.around(x0, y0, z0, luminance - 1).union(Bounds.around(x1, y1, z1, luminance - 1));
+        return Bounds.litAround(x0, y0, z0, luminance).union(Bounds.litAround(x1, y1, z1, luminance));
     }
 
     @Override
@@ -67,7 +67,7 @@ public record Line(double x0, double y0, double z0, double x1, double y1, double
 
     @Override
     public Line settled() {
-        return new Line(Source.centreOf(x0), Source.centreOf(y0), Source.centreOf(z0),
-                Source.centreOf(x1), Source.centreOf(y1), Source.centreOf(z1), luminance);
+        return new Line(Source.subBlock(x0), Source.subBlock(y0), Source.subBlock(z0),
+                Source.subBlock(x1), Source.subBlock(y1), Source.subBlock(z1), luminance);
     }
 }

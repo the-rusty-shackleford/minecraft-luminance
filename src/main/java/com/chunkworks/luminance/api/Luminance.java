@@ -31,8 +31,8 @@ import net.minecraft.world.item.Item;
  * What another mod calls to make its things cast light. Client-side only:
  * call it from client setup, guarded by whether this mod is loaded if it is
  * optional to you. A source is a {@link Point} or a {@link Line} (a beam),
- * both with a luminance of 1..15; the engine asks the provider once per
- * client tick for every entity of the type within range and draws the
+ * both with a luminance of 1..15; the engine asks the provider before rendering at most 30 times
+ * per second for every entity of the type within range and draws the
  * strongest light at each block.
  */
 public final class Luminance {
@@ -45,6 +45,15 @@ public final class Luminance {
      */
     public static <T extends Entity> void forEntity(EntityType<T> type, Function<? super T, ? extends Collection<? extends Source>> provider) {
         Providers.forEntity(type, provider);
+    }
+
+    /**
+     * effects: registers a provider sampled at the rendered fraction between ticks, at most 30 times
+     * per second; use the fraction for position/yaw interpolation. The original provider API remains valid.
+     */
+    public static <T extends Entity> void forEntityInterpolated(EntityType<T> type,
+            java.util.function.BiFunction<? super T, Float, ? extends Collection<? extends Source>> provider) {
+        Providers.forEntityInterpolated(type, provider);
     }
 
     /**

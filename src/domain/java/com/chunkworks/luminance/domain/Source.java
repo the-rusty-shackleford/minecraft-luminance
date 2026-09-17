@@ -27,10 +27,9 @@ package com.chunkworks.luminance.domain;
  * level per block, along a straight line instead of the block grid.
  *
  * <p>Sources are compared by value: the engine tells a source that moved
- * from one that stayed by equality, so a source is placed at the centre of
- * its block by {@link #settled()} before it is compared -- two positions in
- * the same block are one source, and the light they cast is identical, so
- * nothing has to be redrawn until the source leaves the block.
+ * from one that stayed by equality. {@link #settled()} quantizes positions
+ * to a sixteenth of a block, preserving small movements without rebuilding
+ * for floating-point noise. The client publishes fields before rendering at a bounded cadence.
  */
 public sealed interface Source permits Point, Line {
     /** The brightest a source can be: a block's full light. */
@@ -49,7 +48,7 @@ public sealed interface Source permits Point, Line {
      */
     int lightAt(int x, int y, int z);
 
-    /** effects: returns this source moved to the centre of its block(s), so that equal blocks give equal sources */
+    /** effects: returns this source quantized to a sixteenth of a block; idempotent */
     Source settled();
 
     /** effects: returns {@code luminance} if it is a legal luminance<br>throws: {@link IllegalArgumentException} if it is not 1..15 */
@@ -63,6 +62,11 @@ public sealed interface Source permits Point, Line {
     /** effects: returns the light {@code luminance} casts at a point {@code distance} away: rounded, floored at 0 */
     static int falloff(int luminance, double distance) {
         return Math.max(0, (int) Math.round(luminance - distance));
+    }
+
+    /** effects: returns the nearest sixteenth-block coordinate */
+    static double subBlock(double coordinate) {
+        return Math.rint(coordinate * 16.0) / 16.0;
     }
 
     /** effects: returns the centre of the block containing {@code coordinate} */

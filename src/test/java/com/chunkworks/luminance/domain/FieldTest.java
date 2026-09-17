@@ -26,10 +26,10 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Partitions. Sources: none, one, two apart, two overlapping (the stronger
- * wins, never a sum), two in one block (one source). Cap: under, at, over
+ * wins, never a sum), two in one sub-block cell (one source). Cap: under, at, over
  * (the nearest to the viewer survive), zero, negative (refused). Dirty
  * against the previous field: identical (nothing), a source moved within
- * its block (nothing), moved to the next block (the old and the new box),
+ * its block (changes), sub-block noise (nothing), moved to the next block (the old and the new box),
  * appeared, vanished, changed luminance (both boxes), the empty field on
  * either side.
  */
@@ -56,8 +56,8 @@ final class FieldTest {
     }
 
     @Test
-    void twoSourcesInOneBlockAreOne() {
-        Field f = Field.of(List.of(new Point(0.2, 0.2, 0.2, 10), new Point(0.9, 0.9, 0.9, 10)), 64, 0, 0, 0);
+    void twoSourcesInOneQuantizedCellAreOne() {
+        Field f = Field.of(List.of(new Point(0.2, 0.2, 0.2, 10), new Point(0.201, 0.201, 0.201, 10)), 64, 0, 0, 0);
         assertEquals(1, f.sources().size());
     }
 
@@ -75,16 +75,18 @@ final class FieldTest {
     }
 
     @Test
-    void onlySourcesThatChangedBlockDirtyAnything() {
+    void SubBlockMotionDirtiesBothOldAndNewBounds() {
         Point torch = new Point(10.2, 64.5, 10.5, 14);
         Field before = Field.of(List.of(torch), 64, 0, 0, 0);
         assertEquals(List.of(), before.dirtyAgainst(before), "same field");
         Field within = Field.of(List.of(new Point(10.9, 64.1, 10.9, 14)), 64, 0, 0, 0);
-        assertEquals(List.of(), within.dirtyAgainst(before), "moved within the block");
+        assertEquals(2, within.dirtyAgainst(before).size(), "moved within the block");
+        Field noise = Field.of(List.of(new Point(10.201, 64.501, 10.501, 14)), 64, 0, 0, 0);
+        assertEquals(List.of(), noise.dirtyAgainst(before));
         Field next = Field.of(List.of(new Point(11.2, 64.5, 10.5, 14)), 64, 0, 0, 0);
         List<Bounds> dirty = next.dirtyAgainst(before);
         assertEquals(2, dirty.size(), "the new box and the old");
-        assertTrue(dirty.contains(new Point(11.5, 64.5, 10.5, 14).bounds()));
+        assertTrue(dirty.contains(new Point(11.2, 64.5, 10.5, 14).settled().bounds()));
         assertTrue(dirty.contains(torch.settled().bounds()));
     }
 

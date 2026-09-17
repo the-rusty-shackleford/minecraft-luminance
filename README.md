@@ -10,8 +10,8 @@ for a beam. Client-only; a server without it is no mismatch.
 Every block-light lookup the renderer makes goes through one vanilla function,
 `LevelRenderer.getLightColor`, and Sodium's chunk meshing calls the same one; an
 entity's light goes through `EntityRenderer.getBlockLightLevel`. Two mixins make both
-answer with the dynamic light where it beats the block light. Once a client tick the
-engine gathers the sources in range, settles each to the centre of its block, keeps the
+answer with the dynamic light where it beats the block light. At most thirty times a second, just before a rendered frame, the
+engine gathers interpolated sources in range, settles each to a 1/16-block grid, keeps the
 nearest `maxSources`, publishes the result as one immutable field, and asks the level
 renderer to re-mesh exactly the sections a source entered or left. With Sodium present,
 vanilla's re-mesh request is Sodium's own, so nothing here names Sodium. Shader packs
@@ -19,9 +19,10 @@ read the lightmap coordinates the mixins changed, so Iris needs nothing either.
 
 A source casts `luminance − distance` at a block, straight-line distance to the
 block's centre, rounded, never below zero: the game's own falloff of a level a block,
-without the grid. Two sources give the stronger, never the sum. Settling to block
-centres means a torch carried across a block casts the same light until it leaves the
-block, so nothing is redrawn in between.
+without the grid. Two sources give the stronger, never the sum. Sub-block settling avoids whole-block jumps while bounding tiny position changes.
+Old and new bounds include every positive rounded sample; section rebuild requests are
+deduplicated and restricted to the world height. Light queries allocate nothing.
+The point and line falloff and brightness are unchanged.
 
 ## What glows
 
@@ -34,7 +35,9 @@ block, so nothing is redrawn in between.
 - **Entities** in `luminance/entities.json`: blaze, magma cube, glow squid, allay,
   fireballs, spectral arrows, primed TNT, end crystals, glow item frames.
 - **Registered sources**: `Luminance.forEntity(type, entity -> sources)` from a mod's
-  client setup; `Luminance.forItem(item, luminance)` for an item.
+  client setup; `Luminance.forEntityInterpolated(type, (entity, partialTick) -> sources)`
+  when light follows a rendered moving entity; `Luminance.forItem(item, luminance)` for an item.
+  Providers run on the render thread and should return bounded, inexpensive source lists.
 
 The data files are read from every resource pack, bottom to top, at
 `assets/<namespace>/luminance/items.json` and `entities.json`; a later pack overrides an
@@ -56,7 +59,7 @@ is the better choice, since Luminance lights every player's torch, not only the 
 
 `src/domain` (JDK-only, plain JUnit): `Source` (`Point`, `Line`), `Bounds`, `Field` --
 what light a set of sources casts at a block and which blocks a change touches.
-`src/main`: `client/Engine` (the tick, the published field, the re-mesh), `Providers`
+`src/main`: `client/Engine` (the frame sample, the published field, the re-mesh), `Providers`
 (what casts light), `LightData` (the JSON), `LuminanceConfig`, the two mixins, and
 `api/Luminance`. `src/gametest`: the photo booth, a mod of its own, never shipped.
 
@@ -71,12 +74,23 @@ export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 PATH="$JAVA_HOME/bin:$PATH"
 The booth makes a flat world at night and photographs the ground with empty hands, with
 a torch in hand, with the engine switched off, with a dropped glowstone and with a
 burning cow, reading each frame's brightness back; its `booth: PASS/FAIL` lines are the
-assertion. Headless: `Xephyr :7 -screen 1280x720 -ac -br -noreset` on another display,
-then `DISPLAY=:7 __GLX_VENDOR_LIBRARY_NAME=mesa LIBGL_ALWAYS_SOFTWARE=1
-GALLIUM_DRIVER=llvmpipe ./gradlew check`. To look at it under the pack's renderer, drop
-Sodium and Iris into `run/booth/mods`, a shader pack into `run/booth/shaderpacks` with
-`run/booth/config/iris.properties` naming it, and add `MESA_GL_VERSION_OVERRIDE=4.6
-MESA_GLSL_VERSION_OVERRIDE=460` to the environment.
+assertion. Use one rendering client at a time and a verified free display; the booth mutes itself
+and exits. To test shader compatibility, put Sodium and Iris in `run/booth/mods`,
+the shader pack in `run/booth/shaderpacks`, and name it in
+`run/booth/config/iris.properties`. For the engine-off assertion, set `HELD_LIGHTING_MODE=0` in the fixture’s
+`shaderpacks/ComplementaryUnbound_r5.8.1.zip.txt`; otherwise the shader independently
+lights the torch even with Luminance disabled. This fixture setting does not change
+players’ shader preferences. Software rendering can verify the images but does
+not measure GPU performance.
+
+`-Dluminance.metrics=true` logs mean/peak dirty sections and scheduling time every
+100 samples. This measures rebuild scheduling, not the asynchronous mesh work.
+The moving-light change is also gated by the moving Trailblazer night course under
+Sodium, Iris and Complementary, with frame times recorded separately. See D-0002.
+
+## Release 1.1.0
+
+Sub-block interpolated light movement with the original point/line brightness and falloff. The additive provider API accepts the render partial tick; terrain rebuild requests remain bounded.
 
 ## Licence
 

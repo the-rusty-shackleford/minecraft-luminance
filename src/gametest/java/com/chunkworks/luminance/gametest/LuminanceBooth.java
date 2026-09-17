@@ -95,6 +95,7 @@ public final class LuminanceBooth {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
+        mc.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MASTER).set(0.0);
         switch (phase) {
             case TITLE -> {
                 if (mc.screen instanceof TitleScreen && mc.getOverlay() == null) {

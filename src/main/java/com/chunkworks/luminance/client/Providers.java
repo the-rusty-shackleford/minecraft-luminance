@@ -26,6 +26,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.BiFunction;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -38,7 +40,7 @@ import net.minecraft.world.item.ItemStack;
  * What casts light: the built-in rules -- a glowing item in a hand or on
  * the ground, anything on fire, the mobs the data files name -- and the
  * providers other mods register per entity type. Each is a pure function
- * of the entity, asked once per tick.
+ * of the entity, asked at the engine's bounded frame cadence.
  */
 public final class Providers {
     private Providers() {}
@@ -46,13 +48,20 @@ public final class Providers {
     /** What a burning thing casts: the fire block's light, less a little, since it is a small fire. */
     private static final int BURNING = 10;
 
-    private static final Map<EntityType<?>, List<Function<Entity, Collection<? extends Source>>>> BY_TYPE = new HashMap<>();
+    private static final Map<EntityType<?>, List<BiFunction<Entity, Float, Collection<? extends Source>>>> BY_TYPE = new HashMap<>();
     private static final Map<Item, Integer> ITEM_OVERRIDES = new HashMap<>();
 
     /** effects: registers {@code provider} for {@code type} (see the api) */
     @SuppressWarnings("unchecked")
     public static <T extends Entity> void forEntity(EntityType<T> type, Function<? super T, ? extends Collection<? extends Source>> provider) {
-        BY_TYPE.computeIfAbsent(type, t -> new ArrayList<>()).add(e -> provider.apply((T) e));
+        forEntityInterpolated(type, (e, partial) -> provider.apply(e));
+    }
+
+    /** effects: registers a provider accepting the rendered partial tick */
+    @SuppressWarnings("unchecked")
+    public static <T extends Entity> void forEntityInterpolated(EntityType<T> type,
+            BiFunction<? super T, Float, ? extends Collection<? extends Source>> provider) {
+        BY_TYPE.computeIfAbsent(type, t -> new ArrayList<>()).add((e, partial) -> provider.apply((T) e, partial));
     }
 
     /** effects: registers a luminance for {@code item} that beats the data files' */
@@ -90,12 +99,17 @@ public final class Providers {
 
     /** effects: appends every source {@code entity} casts this tick to {@code out} */
     public static void collect(Entity entity, List<Source> out) {
+        collect(entity, out, 1.0f);
+    }
+
+    /** effects: appends sources at the rendered position between the entity's last and current tick */
+    public static void collect(Entity entity, List<Source> out, float partialTick) {
         if (entity.isSpectator()) {
             return;
         }
-        double x = entity.getX();
-        double y = entity.getY();
-        double z = entity.getZ();
+        double x = Mth.lerp(partialTick, entity.xOld, entity.getX());
+        double y = Mth.lerp(partialTick, entity.yOld, entity.getY());
+        double z = Mth.lerp(partialTick, entity.zOld, entity.getZ());
         if (LuminanceConfig.BURNING.get() && entity.isOnFire()) {
             out.add(new Point(x, y + entity.getBbHeight() * 0.5, z, BURNING));
         }
@@ -103,7 +117,7 @@ public final class Providers {
             boolean underwater = living.isUnderWater();
             int held = Math.max(luminanceOf(living.getMainHandItem(), underwater), luminanceOf(living.getOffhandItem(), underwater));
             if (held > 0) {
-                out.add(new Point(x, living.getEyeY() - 0.2, z, held));
+                out.add(new Point(x, y + living.getEyeHeight() - 0.2, z, held));
             }
         }
         if (LuminanceConfig.DROPPED_ITEMS.get() && entity instanceof ItemEntity dropped) {
@@ -117,10 +131,10 @@ public final class Providers {
             if (data != null && !(entity.isUnderWater() && !data.underwater())) {
                 out.add(new Point(x, y + entity.getBbHeight() * 0.5, z, data.luminance()));
             }
-            List<Function<Entity, Collection<? extends Source>>> providers = BY_TYPE.get(entity.getType());
+            List<BiFunction<Entity, Float, Collection<? extends Source>>> providers = BY_TYPE.get(entity.getType());
             if (providers != null) {
-                for (Function<Entity, Collection<? extends Source>> provider : providers) {
-                    out.addAll(provider.apply(entity));
+                for (BiFunction<Entity, Float, Collection<? extends Source>> provider : providers) {
+                    out.addAll(provider.apply(entity, partialTick));
                 }
             }
         }
